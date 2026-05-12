@@ -1,6 +1,6 @@
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
-from .conifg import Config
+from .config import Config
 from .tools import (register_auth_tools,
                     register_dashboard_tools,
                     register_chart_tools,
@@ -46,8 +46,8 @@ class SupersetMCP:
     
     def run(self):
         """ Run the FastMCP server."""
-        MCP.run(host=self.host, port=self.port)
         setup_mcp(MCP)
+        MCP.run("sse", host=self.host, port=self.port)
 
 def main():
     config = Config()
