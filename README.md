@@ -1,9 +1,12 @@
+# Superset MCP Server
 
-The Analytics MCP (Model Control Protocol) Server is a Python-based application that provides programmatic access to an Analytics platform's API, enabling AI assistants or automated systems to interact with dashboards, charts, databases, datasets, SQL queries, user activities, tags, and more. It uses the `FastMCP` framework to manage tools and integrate with the platform's API.
+**Repository**: [https://github.com/alammahbub/superset-fastmcp](https://github.com/alammahbub/superset-fastmcp)
+
+The Superset MCP (Model Context Protocol) Server is a Python-based application that provides programmatic access to an Apache Superset instance. It enables AI assistants and agents (like Claude or Gemini) to natively interact with your Superset data stack—including dashboards, charts, databases, datasets, SQL Lab queries, user activities, tags, and more. It uses the `FastMCP` framework to manage tools and integrate with the platform's API over Server-Sent Events (SSE).
 
 ## Features
 
-+ **Authentication**: Manage user authentication, token validation, and token refreshing.
++ **Authentication**: Manage user authentication, token validation, token refreshing, and CSRF token management for safe API interaction.
 + **Dashboards**: List, retrieve, create, update, and delete dashboards.
 + **Charts**: Manage chart creation, updates, and deletions with support for various visualization types.
 + **Databases**: Handle database connections, including creation, testing, and schema/table retrieval.
@@ -20,68 +23,75 @@ The Analytics MCP (Model Control Protocol) Server is a Python-based application 
 ## Installation
 
 1. **Clone the Repository**:
-   |||bash
-   git clone <repository-url>
-   cd analytics_mcp
-   |||
+   ```bash
+   git clone https://github.com/alammahbub/superset-fastmcp
+   cd superset-fastmcp
+   ```
 
 2. **Install Dependencies**:
    Ensure you have Python 3.8+ installed. Create a virtual environment and install the required packages:
-   |||bash
+   ```bash
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install uvicorn python-dotenv httpx
-   |||
+   # On macOS/Linux: source venv/bin/activate
+   # On Windows: venv\Scripts\activate
+   pip install fastmcp python-dotenv httpx uvicorn
+   ```
 
 3. **Set Up Environment Variables**:
-   Create a `.env` file in the `analytics_mcp` directory with the following:
-   |||env
-   ANALYTICS_API_URL=http://localhost:8080
-   ANALYTICS_USER=your_username
-   ANALYTICS_PASS=your_password
-   |||
-   - `ANALYTICS_API_URL`: The base URL of the Analytics platform API (default: `http://localhost:8080`).
-   - `ANALYTICS_USER`: Your Analytics platform username.
-   - `ANALYTICS_PASS`: Your Analytics platform password.
+   Create a `.env` file in the project directory with the following:
+   ```env
+   ANALYTICS_API_URL=http://localhost:8088
+   ANALYTICS_USER=admin
+   ANALYTICS_PASS=admin
+   ```
+   - `ANALYTICS_API_URL`: The base URL of the Superset platform API.
+   - `ANALYTICS_USER`: Your Superset platform username.
+   - `ANALYTICS_PASS`: Your Superset platform password.
 
 ## Usage
 
-1. **Run the Server**:
-   Start the MCP server using the `main.py` script:
-   |||bash
-   python -m analytics_mcp.main
-   |||
-   This starts a Uvicorn server on `0.0.0.0:8000` by default.
+### Starting the Server
+Start the MCP server using the `main.py` script. By default, it runs on port 5008 to avoid collision with standard Superset ports.
 
-2. **Use in a Script**:
-   You can integrate the MCP server into another Python script:
-   |||python
-   from analytics_mcp import setup_mcp
+```bash
+python -m app.main
+```
+This starts the SSE endpoint at `http://localhost:5008/sse`.
 
-   mcp = setup_mcp()
-   # Use mcp to interact with the Analytics platform
-   |||
+### Configuring your AI Agent
+To connect your AI assistant to this MCP server, add the SSE endpoint to your client's specific configuration file (e.g., `mcp_config.json`):
 
-3. **Example API Calls**:
-   Use the registered tools to interact with the Analytics platform. For example, to authenticate:
-   |||python
-   import asyncio
-   from analytics_mcp import setup_mcp
+```json
+{
+  "mcpServers": {
+    "superset": {
+      "url": "http://localhost:5008/sse"
+    }
+  }
+}
+```
 
-   async def main():
-       mcp = setup_mcp()
-       ctx = mcp.create_context()  # Assuming FastMCP provides a context creation method
-       result = await mcp.tools["analytics_auth_authenticate_user"](ctx, username="user", password="pass")
-       print(result)
+### Use in a Script
+You can integrate the MCP server into another Python script using `fastmcp`:
 
-   asyncio.run(main())
-   |||
+```python
+import asyncio
+from app.main import mcp
+
+async def main():
+    # Use the FastMCP context to run a tool programmatically
+    ctx = mcp.create_context() 
+    result = await mcp.tools["analytics_auth_authenticate_user"](ctx, username="admin", password="password")
+    print(result)
+
+asyncio.run(main())
+```
 
 ## Configuration
 
 + **Environment Variables**: Ensure the `.env` file is correctly configured with the Analytics platform's API URL and credentials.
-+ **Port and Host**: Modify the `uvicorn.run` call in `main.py` to change the host or port if needed.
-+ **Dependencies**: The server requires `uvicorn`, `python-dotenv`, and `httpx`. Install additional dependencies as needed for your environment.
++ **Port and Host**: Modify the `uvicorn.run` call in `app/main.py` to change the host or port if needed.
++ **Dependencies**: The server requires `fastmcp`, `uvicorn`, `python-dotenv`, and `httpx`. Install additional dependencies as needed for your environment.
 
 ## Contributing
 
@@ -98,6 +108,6 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 
 ## Notes
 
-+ The server assumes the Analytics platform API follows a structure similar to common BI platforms. If the API endpoints differ, update the endpoint paths in the respective tool files.
-+ The `FastMCP` framework is used for tool registration and server management. Ensure you have access to the `mcp.server.fastmcp` module.
-+ For production use, secure the `.env` file and consider using a reverse proxy (e.g., Nginx) for the Uvicorn server.
++ The server assumes the Analytics platform API follows a structure similar to common BI platforms (like Apache Superset). If the API endpoints differ, update the endpoint paths in the respective tool files under `app/tools/`.
++ Make sure the Superset instance you are targeting has `WTF_CSRF_ENABLED = True` (or properly handles cookies if false), as this MCP server handles CSRF tokens explicitly.
++ For production use, secure the `.env` file and consider using a reverse proxy (e.g., Nginx) for the server.
